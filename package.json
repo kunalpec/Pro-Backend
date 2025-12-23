@@ -1,0 +1,18 @@
+{
+  "name": "pro-backend",
+  "version": "1.0.0",
+  "description": "professional backend code",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [
+    "pro",
+    "repo",
+    "chai",
+    "node"
+  ],
+  "author": "kunal",
+  "license": "ISC"
+}
