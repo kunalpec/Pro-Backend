@@ -1,28 +1,28 @@
 {
   "name": "pro-backend",
   "version": "1.0.0",
-  "description": "professional backend code",
-  "main": "index.js",
+  "description": "Professional backend code",
   "type": "module",
+  "main": "src/index.js",
   "scripts": {
     "dev": "nodemon src/index.js",
     "format": "prettier --write ."
   },
   "keywords": [
-    "pro",
-    "repo",
-    "chai",
-    "node"
+    "backend",
+    "node",
+    "express",
+    "mongodb"
   ],
-  "author": "kunal",
+  "author": "Kunal",
   "license": "ISC",
   "devDependencies": {
-    "nodemon": "^3.1.11",
-    "prettier": "^3.7.4"
+    "nodemon": "^3.1.0",
+    "prettier": "^3.3.3"
   },
   "dependencies": {
-    "dotenv": "^17.2.3",
-    "express": "^5.2.1",
-    "mongoose": "^9.0.2"
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mongoose": "^8.6.1"
   }
 }
