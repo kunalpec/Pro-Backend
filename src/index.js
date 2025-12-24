@@ -1,25 +1,32 @@
-// modules
+// modules...
 import connectDB from "./db/db.js";
 import dotenv from "dotenv";
+import app from "./app.js";
 
-// helper function
+// helper function...
 dotenv.config({
-  path:".env"
-});
+  path: ".env",
+}); 
 
-connectDB();
+// connecting to Data Base function in db/db.js...
+connectDB()
+  .then(() => {
 
+    // if express app not run proper way...
+    app.on("error", (error) => {
+      console.error("Error in Express app:", error.message);
+      throw error;
+    });
 
-
-
-
-
-
-
-
-
-
-
+    // if express app run in proper way...
+    app.listen(process.env.PORT, () => {
+      console.log(`Server is running at :${process.env.PORT}`);
+    });
+    
+  })
+  .catch((error) => {
+    console.log("Mongo db connection loss !!!...");
+  });
 
 
 
