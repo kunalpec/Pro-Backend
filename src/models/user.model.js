@@ -1,5 +1,6 @@
-import { getRounds } from "bcrypt";
 import mongoose from "mongoose";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 
 const UserSchema = new mongoose.Schema(
   {
@@ -25,11 +26,11 @@ const UserSchema = new mongoose.Schema(
       index: true,
     },
     avatar: {
-      type: String, // use cloudinary services
+      type: String,
       required: true,
     },
     coverImage: {
-      type: String, // use cloudinary services
+      type: String,
     },
     watchHistory: [
       {
@@ -48,14 +49,44 @@ const UserSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-UserSchema.pre("save",async function(next){
-  if (!this.isModified("password")) return next()
-  this.password=await bcrypt.hash(this.password,10)
-  next()
-})
+UserSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
 
-UserSchema.methods.isPasswordCorrect=async function(password){
-  return await bcrypt.compare(password,this.password);
-}
+  this.password = await bcrypt.hash(this.password, 10);
+  next();
+});
+
+UserSchema.methods.isPasswordCorrect = async function (password) {
+  return await bcrypt.compare(password, this.password);
+};
+
+
+UserSchema.methods.generateAccessToken = function () {
+  return jwt.sign(
+    {
+      _id: this._id,
+      email: this.email,
+      username: this.username,
+    },
+    process.env.ACCESS_SECRET_KEY,
+    {
+      expiresIn: process.env.ACCESS_SECRET_EXPIRY,
+    }
+  );
+};
+
+
+UserSchema.methods.generateRefreshToken = function () {
+  return jwt.sign(
+    {
+      _id: this._id,
+    },
+    process.env.REFRESH_SECRET_KEY,
+    {
+      expiresIn: process.env.REFRESH_SECRET_EXPIRY,
+    }
+  );
+};
 
 export const User = mongoose.model("User", UserSchema);
+
