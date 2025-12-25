@@ -5,42 +5,42 @@ const VideoSchema = new mongoose.Schema(
   {
     videoFile: {
       type: String,
-      required: true
+      required: true,
     },
-    thumbnail: {            
+    thumbnail: {
       type: String,
-      required: true
+      required: true,
     },
     title: {
       type: String,
       required: true,
-      trim: true            
+      trim: true,
     },
     description: {
       type: String,
       required: true,
-      trim: true
+      trim: true,
     },
     duration: {
-      type: Number,          
-      required: true
+      type: Number,
+      required: true,
     },
     views: {
       type: Number,
-      default: 0
+      default: 0,
     },
-    isPublished: {           
+    isPublished: {
       type: Boolean,
-      default: true
+      default: true,
     },
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true        
-    }
+      required: true,
+    },
   },
   { timestamps: true }
 );
 
-VideoSchema.plugin(mongooseAggregatePaginate)
+VideoSchema.plugin(mongooseAggregatePaginate);
 export const Video = mongoose.model("Video", VideoSchema);

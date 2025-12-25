@@ -1,12 +1,14 @@
 // new promise((resolve)) == Promise.resolve()
 
 const asyncHandler = (func) => {
-  return (req,res,next) => {
-    Promise.resolve(func(req,res,next)).catch((error)=>{next(error)});
+  return (req, res, next) => {
+    Promise.resolve(func(req, res, next)).catch((error) => {
+      next(error);
+    });
   };
 };
 
-export default asyncHandler ;
+export default asyncHandler;
 
 // # normally
 // const asyncHandler = (func) => {
@@ -18,4 +20,3 @@ export default asyncHandler ;
 //     }
 //   };
 // };
-
