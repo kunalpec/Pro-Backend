@@ -17,11 +17,11 @@ import path from "path";
 const storage = multer.diskStorage({
   //part 1
   destination: function (req, file, cb) {
-    cb(null,"./public/temp"); // local folder
+    cb(null, "./public/temp"); // local folder
   },
   //part 2
   filename: function (req, file, cb) {
-    const uniqueName =Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const uniqueName = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(null, uniqueName + path.extname(file.originalname));
   },
 });

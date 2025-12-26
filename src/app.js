@@ -1,9 +1,11 @@
 import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import userRouter from "./routes/user.route.js";
 
 // helper function
-app = express();
+const app = express();
+
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN,
@@ -23,4 +25,8 @@ app.use(
 );
 app.use(express.static("public"));
 app.use(cookieParser());
+
+// user router
+app.use("/api/v1/users", userRouter);
+
 export default app;
