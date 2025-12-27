@@ -1,8 +1,11 @@
 import { Router } from "express";
 import UploadToDisk from "../middlewares/multer.middleware.js";
-import registerUser from "../controllers/user.controller.js";
+import {registerUser,loginUser,logOutUser} from "../controllers/user.controller.js";
+import verifyJWT from "../middlewares/Auth.middleware.js";
 
 const userRouter = Router();
+
+// REGISTER URL -----------PART 1
 userRouter.route("/register").post(
   UploadToDisk.fields([
     {
@@ -15,5 +18,11 @@ userRouter.route("/register").post(
     }
   ]),
   registerUser);
+
+// LOGIN URL --------------PART 2
+userRouter.route("/login").post(loginUser);
+
+// LOGOUT URL--------------PART 3
+userRouter.route("/logout").post(verifyJWT,logOutUser);
 
 export default userRouter;
