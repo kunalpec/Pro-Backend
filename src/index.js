@@ -1,16 +1,17 @@
 // modules...
-import connectDB from "./db/db.js";
 import dotenv from "dotenv";
-import app from "./app.js";
 
 // helper function...
 dotenv.config({
   path: ".env",
 });
 
+import connectDB from "./db/db.js";
+import app from "./app.js";
+
 // connecting to Data Base function in db/db.js...
 connectDB()
-  .then(() => {
+.then(() => {
     // if express app not run proper way...
     app.on("error", (error) => {
       console.error("Error in Express app:", error.message);
