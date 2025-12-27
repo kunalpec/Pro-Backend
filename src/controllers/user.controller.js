@@ -5,64 +5,73 @@ import uploadOnCloudinary from "../utils/cloudinary.js";
 import ApiResponse from "../utils/ApiResponse.js";
 
 const registerUser = asyncHandler(async (req, res) => {
-  
-  // 1. get the data from frontend
+
   const { username, email, fullname, password } = req.body;
 
-  // 2. check the data whether empty or not
-  if ([username, email, fullname, password].some(field?.trim === "")) {
+  // validate input
+  if ([username, email, fullname, password].some(
+    (field) => !field || field.trim() === ""
+  )) {
     throw new ApiError(400, "All fields are required...");
-  } else if (email.include("@")) {
+  }
+
+  if (!email.includes("@")) {
     throw new ApiError(400, "Email should be correct...");
   }
 
-  // 3. user already exist
-  const existedUser = User.findOne({
+  // check existing user
+  const existedUser = await User.findOne({
     $or: [{ username }, { email }],
   });
+
   if (existedUser) {
-    throw new (409, "User with this email or username already exists....")();
+    throw new ApiError(
+      409,
+      "User with this email or username already exists..."
+    );
   }
 
-  // 4. check files Avatar, CoverImage
-  const AvatarlLocalPath = req.files?.Avatar[0]?.path;
-  const CoverImageLocalPath = req.files?.CoverImage[0]?.path;
+  // files
+  const avatarLocalPath = req.files?.Avatar?.[0]?.path;
+  const coverImageLocalPath = req.files?.CoverImage?.[0]?.path;
 
-  if (!AvatarlLocalPath) {
-    throw new (400, "User Avatar is Required...")();
+  if (!avatarLocalPath) {
+    throw new ApiError(400, "User Avatar is required...");
   }
 
-  // 5. save files to cloudinary
-  const UploadedAvatar = await uploadOnCloudinary(AvatarlLocalPath);
-  const UploadedCoverImage = await uploadOnCloudinary(CoverImageLocalPath);
+  // upload
+  const uploadedAvatar = await uploadOnCloudinary(avatarLocalPath);
+  const uploadedCoverImage = coverImageLocalPath
+    ? await uploadOnCloudinary(coverImageLocalPath)
+    : null;
 
-  if (!UploadedAvatar) {
-    throw new (400, "User Avatar is Required...")();
+  if (!uploadedAvatar) {
+    throw new ApiError(400, "Avatar upload failed on Cloudinary...");
   }
 
-  // 6. check the response for usercreation
-  const UserDbResponse = await User.create({
+  // create user
+  const user = await User.create({
     username: username.toLowerCase(),
     fullname: fullname.toLowerCase(),
-    email: email,
-    password: password,
-    avatar: UploadedAvatar.url,
-    coverImage: UploadedCoverImage?.url || "",
+    email,
+    password,
+    avatar: uploadedAvatar.url,
+    coverImage: uploadedCoverImage?.url || "",
   });
 
-  // 7. remove the passward and Refresh token feed from response to frontend
-  const crestedUser = await User.findById(UserDbResponse._id).select(
+  const createdUser = await User.findById(user._id).select(
     "-password -refreshToken"
   );
 
-  if (crestedUser) {
+  if (!createdUser) {
     throw new ApiError(500, "User not created...");
   }
 
-  // send res to user
   return res
     .status(201)
-    .json(new ApiResponse(201, crestedUser, "User registed successfully..."));
+    .json(
+      new ApiResponse(201, createdUser, "User registered successfully...")
+    );
 });
 
 export default registerUser;
