@@ -5,6 +5,7 @@ import {
   loginUser,
   logOutUser,
   refreshAccessToken,
+  createNewPassword
 } from "../controllers/user.controller.js";
 import verifyJWT from "../middlewares/Auth.middleware.js";
 
@@ -33,5 +34,8 @@ userRouter.route("/logout").post(verifyJWT, logOutUser);
 
 // RefreshAccessToken
 userRouter.route("refresh-access-token").post(refreshAccessToken);
+
+// CreateNewPassword
+userRouter.route("create-new-password").post(verifyJWT,createNewPassword);
 
 export default userRouter;

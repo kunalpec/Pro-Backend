@@ -4,6 +4,9 @@ import { User } from "../models/user.model.js";
 import uploadOnCloudinary from "../utils/cloudinary.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
+
+
+
 //---------------Helper Function-----------------------
 const generateRefreshAndAccessToken = async (userId) => {
   try {
@@ -179,7 +182,7 @@ const logOutUser = asyncHandler(async (req, res) => {
   // get undefined the refreshToken
   await User.findByIdAndUpdate(userID, {
     $set: {
-      refreshToken: null,
+      refreshToken: undefined,
     },
   });
 
@@ -267,4 +270,53 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     );
 });
 
-export { registerUser, loginUser, logOutUser, refreshAccessToken };
+const createNewPassword = asyncHandler(async (req, res) => {
+  // Get old and new password from request body
+  const { newPassword, oldPassword } = req.body;
+
+  // If new password and old password are the same, throw error
+  if (newPassword === oldPassword) {
+    throw new ApiError(400, "Both passwords are the same");
+  }
+
+  // Get user id from JWT authentication middleware
+  const userId = req.user?._id;
+
+  // Find user in database
+  const userInfo = await User.findById(userId);
+
+  // If user does not exist, throw error
+  if (!userInfo) {
+    throw new ApiError(401, "User not found");
+  }
+
+  // Check if old password matches the stored hashed password
+  const isPasswordCorrect = await userInfo.isPasswordCorrect(oldPassword);
+
+  // If old password is incorrect, throw error
+  if (!isPasswordCorrect) {
+    throw new ApiError(401, "Incorrect old password");
+  }
+
+  // Set new password (will be hashed by mongoose pre-save hook)
+  userInfo.password = newPassword;
+
+  // Remove refresh token to force re-login on all devices
+  userInfo.refreshToken = undefined;
+
+  // Save updated user without validating unchanged required fields
+  await userInfo.save({ validateBeforeSave: false });
+
+  // Send success response
+  return res
+    .status(200)
+    .json(new ApiResponse(200, null, "Password updated successfully"));
+});
+
+export {
+  registerUser,
+  loginUser,
+  logOutUser,
+  refreshAccessToken,
+  createNewPassword,
+};
