@@ -3,37 +3,43 @@ import ApiError from "../utils/ApiError.js";
 import jwt from "jsonwebtoken";
 import { User } from "../models/user.model.js";
 
-const verifyJWT = asyncHandler(async (req, res, nezr) => {
+const verifyJWT = asyncHandler(async (req, res, next) => {
   try {
-    // access token from frontsend website || mobile
+    // get token from cookie or Authorization header
     const token =
       req.cookies?.accessToken ||
-      req.header("Authorization")?.replace("Bearer ", "");
-  
-    // if token is not avaliable from frontend
+      req.headers.authorization?.split(" ")[1];
+
+    // token missing
     if (!token) {
-      throw ApiError(400, "AccessToken is not there in request header...");
+      throw new ApiError(401, "Access token is missing");
     }
-  
-    // if token is present
-    const DecodedInfo = jwt.verify(token, process.env.ACCESS_SECRET_KEY);
-  
-    // get the user info
-    const userInfo = await User.findById(DecodedInfo?._id).select(
-      "-pasword -refreshToken"
+
+    // verify token
+    const decodedInfo = jwt.verify(
+      token,
+      process.env.ACCESS_SECRET_KEY
     );
-  
-    // if user not present
+
+    // get user from DB
+    const userInfo = await User.findById(decodedInfo._id).select(
+      "-password -refreshToken"
+    );
+
+    // user not found
     if (!userInfo) {
-      throw ApiError(401, "Invalid Access Token...");
+      throw new ApiError(401, "Invalid access token");
     }
-  
+
+    // attach user to request
     req.user = userInfo;
     next();
   } catch (error) {
-    throw ApiError(401,"Invalid Access Token...")
+    throw new ApiError(
+      401,
+      error.message || "Invalid access token"
+    );
   }
 });
-
 
 export default verifyJWT;
