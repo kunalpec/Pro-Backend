@@ -3,7 +3,7 @@ import ApiError from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
 import uploadOnCloudinary from "../utils/cloudinary.js";
 import ApiResponse from "../utils/ApiResponse.js";
-
+import jwt from "jsonwebtoken";
 //---------------Helper Function-----------------------
 const generateRefreshAndAccessToken = async (userId) => {
   try {
@@ -195,7 +195,76 @@ const logOutUser = asyncHandler(async (req, res) => {
     .status(200)
     .clearCookie("accessToken", options)
     .clearCookie("refreshToken", options)
-    .json(new ApiResponse(200, "User LogOut Successfully..."));
+    .json(new ApiResponse(200, {}, "User LogOut Successfully..."));
 });
 
-export { registerUser, loginUser, logOutUser };
+const refreshAccessToken = asyncHandler(async (req, res) => {
+  // 1️ Get refresh token from cookie OR request body
+  const incomingRefreshToken =
+    req.cookies?.refreshToken || req.body.refreshToken;
+
+  // 2️ If refresh token not sent → error
+  if (!incomingRefreshToken) {
+    throw new ApiError(401, "Refresh token missing");
+  }
+
+  let decodedToken;
+
+  // 3️ Verify refresh token (JWT check)
+  // jwt.verify can throw error → so wrap in try-catch
+  try {
+    decodedToken = jwt.verify(
+      incomingRefreshToken,
+      process.env.REFRESH_SECRET_KEY
+    );
+  } catch (error) {
+    throw new ApiError(401, "Invalid or expired refresh token");
+  }
+
+  // 4️ Find user from DB using id from refresh token
+  const user = await User.findById(decodedToken._id);
+
+  // 5️ If user not found
+  if (!user) {
+    throw new ApiError(401, "User not found");
+  }
+
+  // 6️ IMPORTANT SECURITY CHECK
+  // Check if refresh token matches the one stored in DB
+  if (incomingRefreshToken !== user?.refreshToken) {
+    throw new ApiError(401, "Refresh token does not match");
+  }
+
+  // 7️ Generate new access token
+  const { refreshToken: newRefreshToken, accessToken: newAccessToken } =
+    await generateRefreshAndAccessToken(user._id);
+
+  // 98 Save new refresh token in DB
+  user.refreshToken = newRefreshToken;
+  await user.save({ validateBeforeSave: false });
+
+  // 10 Cookie options (security)
+  const options = {
+    httpOnly: true, // frontend JS cannot access
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax", // allows local cookies
+  };
+
+  // 11 Send new tokens to frontend
+  return res
+    .status(200)
+    .cookie("accessToken", newAccessToken, options)
+    .cookie("refreshToken", newRefreshToken, options)
+    .json(
+      new ApiResponse(
+        200,
+        {
+          access: newAccessToken,
+          refresh: newRefreshToken,
+        },
+        "New Tokens Generated Successfully..."
+      )
+    );
+});
+
+export { registerUser, loginUser, logOutUser, refreshAccessToken };
