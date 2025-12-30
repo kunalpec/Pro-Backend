@@ -1,10 +1,11 @@
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiError from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
+import { Subscription } from "../models/subscription.models.js";
 import uploadOnCloudinary from "../utils/cloudinary.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
-
+import deleteUploadFileToCloudinary from "../utils/deleteCloudinaryImage.js";
 //---------------Helper Function-----------------------
 const generateRefreshAndAccessToken = async (userId) => {
   try {
@@ -83,25 +84,28 @@ const registerUser = asyncHandler(async (req, res) => {
 
   // create user
   const user = await User.create({
-    username: username.toLowerCase(),
-    fullname: fullname.toLowerCase(),
-    email,
-    password,
-    avatar: uploadedAvatar.url,
-    coverImage: uploadedCoverImage?.url || "",
+    username: username,
+    fullname: fullname,
+    email: email,
+    password: password,
+    avatar: {
+      url: uploadedAvatar.url,
+      public_id: uploadedAvatar.public_id,
+    },
+    coverImage: uploadedCoverImage
+      ? {
+          url: uploadedCoverImage.url,
+          public_id: uploadedCoverImage.public_id,
+        }
+      : undefined,
   });
 
-  const createdUser = await User.findById(user._id).select(
-    "-password -refreshToken"
-  );
-
-  if (!createdUser) {
-    throw new ApiError(500, "User not created...");
+  if (!user) {
+    throw new ApiError(500, "User Not Created in MongoDB...");
   }
-
   return res
     .status(201)
-    .json(new ApiResponse(201, createdUser, "User registered successfully..."));
+    .json(new ApiResponse(201, user, "User registered successfully"));
 });
 
 // Login user controller
@@ -366,20 +370,36 @@ const UpdateUserAvatar = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Avatar file is missing...");
   }
 
-  // if get then file send to cloudinary
+  // upload new avatar to cloudinary
   const uploadedAvatar = await uploadOnCloudinary(avatarLocalFile);
 
-  // if url not get from cloudinary
-  if (!uploadedAvatar?.url) {
+  if (!uploadedAvatar?.url || !uploadedAvatar?.public_id) {
     throw new ApiError(500, "Avatar upload failed...");
   }
 
-  // if get then save the path in mongoDB database
+  // get old avatar public_id from DB
+  const user = await User.findById(req.user?._id).select("avatar");
+
+  // delete old avatar from cloudinary (if exists)
+  const deleteOldFile = await deleteUploadFileToCloudinary(
+    user?.avatar?.public_id,
+    "Avatar"
+  );
+
+  // check if file delete
+  if (!deleteOldFile) {
+    throw new ApiError(500, "Avatar file not delete from cloudinary...");
+  }
+
+  // update new avatar in DB
   const updatedAvatar = await User.findByIdAndUpdate(
     req.user._id,
     {
       $set: {
-        avatar: uploadedAvatar.url,
+        avatar: {
+          url: uploadedAvatar.url,
+          public_id: uploadedAvatar.public_id,
+        },
       },
     },
     {
@@ -388,7 +408,7 @@ const UpdateUserAvatar = asyncHandler(async (req, res) => {
     }
   ).select("-password -refreshToken");
 
-  // send the new data to user
+  // response
   return res
     .status(200)
     .json(
@@ -401,25 +421,40 @@ const UpdateUserCoverImage = asyncHandler(async (req, res) => {
   // get the req.file that contains new CoverImage file
   const coverImageLocalFile = req.file?.path;
 
-  // if avatar file is missing
+  // if coverImage file is missing
   if (!coverImageLocalFile) {
-    throw new ApiError(400, "coverImage file is missing...");
+    throw new ApiError(400, "CoverImage file is missing...");
   }
 
-  // if get then file send to cloudinary
+  // upload new cover image to cloudinary
   const uploadedCoverImage = await uploadOnCloudinary(coverImageLocalFile);
 
-  // if url not get from cloudinary
-  if (!uploadedCoverImage?.url) {
-    throw new ApiError(500, "coverImage upload failed...");
+  if (!uploadedCoverImage?.url || !uploadedCoverImage?.public_id) {
+    throw new ApiError(500, "CoverImage upload failed...");
   }
 
-  // if get then save the path in mongoDB database
+  // get old coverImage public_id from DB
+  const user = await User.findById(req.user._id).select("coverImage");
+
+  // delete old coverImage from cloudinary (if exists)
+  const deleteOldFile = await deleteUploadFileToCloudinary(
+    user?.coverImage?.public_id,
+    "CoverImage"
+  );
+
+  // check if file delete
+  if (!deleteOldFile) {
+    throw new ApiError(500, "CoverImage file not delete from cloudinary...");
+  }
+  // update coverImage in DB
   const updatedCoverImage = await User.findByIdAndUpdate(
     req.user._id,
     {
       $set: {
-        coverImage: uploadedCoverImage.url,
+        coverImage: {
+          url: uploadedCoverImage.url,
+          public_id: uploadedCoverImage.public_id,
+        },
       },
     },
     {
@@ -428,13 +463,92 @@ const UpdateUserCoverImage = asyncHandler(async (req, res) => {
     }
   ).select("-password -refreshToken");
 
-  // send the new data to user
+  // response
   return res
     .status(200)
     .json(
-      new ApiResponse(200,updatedCoverImage, "Cover image updated successfully...")
+      new ApiResponse(
+        200,
+        updatedCoverImage,
+        "Cover image updated successfully..."
+      )
     );
 });
+
+// get user channel profile info
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+  // get the userpage info from user.param
+  const { username } = req.params;
+
+  // username not present
+  if (!username) {
+    throw ApiError(400, "username is missing...");
+  }
+
+  // username present then find the userInfo
+  const Channel = await User.aggregate([
+    {
+      $match: {
+        username: username?.toLowerCase(),
+      },
+    },
+    {
+      $lookup: {
+        from: "Subscription",
+        localField: "_id",
+        foreignField: "channel",
+        as: "ChannelSubscriber",
+      },
+    },
+    {
+      $lookup: {
+        from: "Subscription",
+        localField: "_id",
+        foreignField: "subscriber",
+        as: "SubscribedTo",
+      },
+    },
+    {
+      $addFields: {
+        subscriberCount: { $size: "$ChannelSubscriber" },
+        subscribedToCount: { $size: "$SubscribedTo" },
+        isSubscribed: {
+          $cond: {
+            if: { $in: [req.user?._id, "$ChannelSubscriber.subscriber"] },
+            then: true,
+            else: false,
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        fullname: 1,
+        username: 1,
+        email: 1,
+        subscriberCount: 1,
+        subscribedToCount: 1,
+        isSubscribed: 1,
+        coverImage: 1,
+        avatar: 1,
+      },
+    },
+  ]);
+
+  // if not find any channel...
+  if (!Channel?.length) {
+    throw new ApiError(400, "Channel Not Found in DataBase...");
+  }
+
+  // send the response...
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, Channel[0], "Channel Info fetched Successfully...")
+    );
+});
+
+// aggregated function always return array.....
 
 export {
   registerUser,
@@ -442,7 +556,9 @@ export {
   logOutUser,
   refreshAccessToken,
   getCurrentUserInfo,
+  createNewPassword,
   UpdateAccountInfo,
   UpdateUserAvatar,
-  UpdateUserCoverImage
+  UpdateUserCoverImage,
+  getUserChannelProfile,
 };

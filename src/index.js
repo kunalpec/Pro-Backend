@@ -11,7 +11,7 @@ import app from "./app.js";
 
 // connecting to Data Base function in db/db.js...
 connectDB()
-.then(() => {
+  .then(() => {
     // if express app not run proper way...
     app.on("error", (error) => {
       console.error("Error in Express app:", error.message);

@@ -7,8 +7,7 @@ const verifyJWT = asyncHandler(async (req, res, next) => {
   try {
     // get token from cookie or Authorization header
     const token =
-      req.cookies?.accessToken ||
-      req.headers.authorization?.split(" ")[1];
+      req.cookies?.accessToken || req.headers.authorization?.split(" ")[1];
 
     // token missing
     if (!token) {
@@ -16,10 +15,7 @@ const verifyJWT = asyncHandler(async (req, res, next) => {
     }
 
     // verify token
-    const decodedInfo = jwt.verify(
-      token,
-      process.env.ACCESS_SECRET_KEY
-    );
+    const decodedInfo = jwt.verify(token, process.env.ACCESS_SECRET_KEY);
 
     // get user from DB
     const userInfo = await User.findById(decodedInfo._id).select(
@@ -35,10 +31,7 @@ const verifyJWT = asyncHandler(async (req, res, next) => {
     req.user = userInfo;
     next();
   } catch (error) {
-    throw new ApiError(
-      401,
-      error.message || "Invalid access token"
-    );
+    throw new ApiError(401, error.message || "Invalid access token");
   }
 });
 

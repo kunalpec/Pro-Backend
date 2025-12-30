@@ -10,6 +10,7 @@ import {
   UpdateAccountInfo,
   UpdateUserAvatar,
   UpdateUserCoverImage,
+  getUserChannelProfile,
 } from "../controllers/user.controller.js";
 import verifyJWT from "../middlewares/Auth.middleware.js";
 
@@ -52,4 +53,6 @@ userRouter
   .route("/update-coverImage-file")
   .patch(verifyJWT, UploadToDisk.single("coverImage"), UpdateUserCoverImage);
 
+// fetch user Channel info
+userRouter.route("/channel-info/:username").get(verifyJWT, getUserChannelProfile);
 export default userRouter;

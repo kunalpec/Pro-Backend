@@ -3,7 +3,7 @@ import fs from "fs";
 import dotenv from "dotenv";
 
 dotenv.config({
-  path:".env"
+  path: ".env",
 });
 
 cloudinary.config({
@@ -24,11 +24,9 @@ const uploadOnCloudinary = async (localFilePath) => {
     });
 
     return response;
-
   } catch (error) {
     console.error("Cloudinary upload failed:", error.message);
     return null;
-
   } finally {
     if (localFilePath) {
       fs.unlink(localFilePath, (err) => {
@@ -41,8 +39,6 @@ const uploadOnCloudinary = async (localFilePath) => {
 };
 
 export default uploadOnCloudinary;
-
-
 
 // {
 //   "asset_id": "9a1b2c3d4e5f",
