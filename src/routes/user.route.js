@@ -5,37 +5,51 @@ import {
   loginUser,
   logOutUser,
   refreshAccessToken,
-  createNewPassword
+  createNewPassword,
+  getCurrentUserInfo,
+  UpdateAccountInfo,
+  UpdateUserAvatar,
+  UpdateUserCoverImage,
 } from "../controllers/user.controller.js";
 import verifyJWT from "../middlewares/Auth.middleware.js";
 
 const userRouter = Router();
 
-// REGISTER URL -----------PART 1
+// REGISTER URL
 userRouter.route("/register").post(
   UploadToDisk.fields([
-    {
-      name: "Avatar",
-      maxCount: 1,
-    },
-    {
-      name: "CoverImage",
-      maxCount: 1,
-    },
+    { name: "avatar", maxCount: 1 },
+    { name: "coverImage", maxCount: 1 },
   ]),
   registerUser
 );
 
-// LOGIN URL --------------PART 2
+// LOGIN URL
 userRouter.route("/login").post(loginUser);
 
-// LOGOUT URL--------------PART 3
+// LOGOUT URL
 userRouter.route("/logout").post(verifyJWT, logOutUser);
 
-// RefreshAccessToken
-userRouter.route("refresh-access-token").post(refreshAccessToken);
+// REFRESH ACCESS TOKEN
+userRouter.route("/refresh-access-token").post(refreshAccessToken);
 
-// CreateNewPassword
-userRouter.route("create-new-password").post(verifyJWT,createNewPassword);
+// CREATE NEW PASSWORD
+userRouter.route("/create-new-password").patch(verifyJWT, createNewPassword);
+
+// GET CURRENT USER INFO
+userRouter.route("/get-current-user-info").get(verifyJWT, getCurrentUserInfo);
+
+// UPDATE ACCOUNT (TEXT ONLY)
+userRouter.route("/update-user-account").patch(verifyJWT, UpdateAccountInfo);
+
+// UPDATE AVATAR FILE
+userRouter
+  .route("/update-avatar-file")
+  .patch(verifyJWT, UploadToDisk.single("avatar"), UpdateUserAvatar);
+
+// UPDATE COVER IMAGE FILE
+userRouter
+  .route("/update-coverImage-file")
+  .patch(verifyJWT, UploadToDisk.single("coverImage"), UpdateUserCoverImage);
 
 export default userRouter;

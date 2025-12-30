@@ -5,8 +5,6 @@ import uploadOnCloudinary from "../utils/cloudinary.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 
-
-
 //---------------Helper Function-----------------------
 const generateRefreshAndAccessToken = async (userId) => {
   try {
@@ -66,8 +64,8 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   // files
-  const avatarLocalPath = req.files?.Avatar?.[0]?.path;
-  const coverImageLocalPath = req.files?.CoverImage?.[0]?.path;
+  const avatarLocalPath = req.files?.avatar?.[0]?.path;
+  const coverImageLocalPath = req.files?.coverImage?.[0]?.path;
 
   if (!avatarLocalPath) {
     throw new ApiError(400, "User Avatar is required...");
@@ -201,6 +199,7 @@ const logOutUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "User LogOut Successfully..."));
 });
 
+// refresh Access Token controller
 const refreshAccessToken = asyncHandler(async (req, res) => {
   // 1️ Get refresh token from cookie OR request body
   const incomingRefreshToken =
@@ -270,6 +269,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     );
 });
 
+// create New Password controller
 const createNewPassword = asyncHandler(async (req, res) => {
   // Get old and new password from request body
   const { newPassword, oldPassword } = req.body;
@@ -301,16 +301,139 @@ const createNewPassword = asyncHandler(async (req, res) => {
   // Set new password (will be hashed by mongoose pre-save hook)
   userInfo.password = newPassword;
 
-  // Remove refresh token to force re-login on all devices
-  userInfo.refreshToken = undefined;
-
   // Save updated user without validating unchanged required fields
   await userInfo.save({ validateBeforeSave: false });
 
   // Send success response
   return res
     .status(200)
-    .json(new ApiResponse(200, null, "Password updated successfully"));
+    .json(new ApiResponse(200, {}, "Password updated successfully"));
+});
+
+// get the current user info controller
+const getCurrentUserInfo = asyncHandler(async (req, res) => {
+  // get the user info from JWT auth Function
+  const userInfo = req.user;
+
+  // send the response to frontend
+  return res
+    .status(200)
+    .json(new ApiResponse(200, userInfo, "This is the current user Info..."));
+});
+
+// update the user account controller
+const UpdateAccountInfo = asyncHandler(async (req, res) => {
+  // make the possible changing fields
+  const allowedFields = ["username", "fullname", "email"];
+  // updation in this
+  const updateData = {};
+
+  // add the newly updated values in updated object
+  allowedFields.forEach((field) => {
+    if (req.body[field] !== undefined) {
+      updateData[field] = req.body[field];
+    }
+  });
+
+  // return error if not updation happen
+  if (Object.keys(updateData).length === 0) {
+    throw new ApiError(400, "No valid fields provided for update");
+  }
+
+  // Update the values in user with id
+  const updateUser = await User.findByIdAndUpdate(
+    req.user._id, //current user
+    { $set: updateData },
+    {
+      new: true,
+      runValidators: true, // schema validation
+    }
+  ).select("-password -refreshToken");
+
+  // Updated Succesfully
+  res
+    .status(200)
+    .json(new ApiResponse(200, updateUser, "Profile updated successfully"));
+});
+
+// update Avatar file
+const UpdateUserAvatar = asyncHandler(async (req, res) => {
+  // get the req.file that contains new Avatar file
+  const avatarLocalFile = req.file?.path;
+
+  // if avatar file is missing
+  if (!avatarLocalFile) {
+    throw new ApiError(400, "Avatar file is missing...");
+  }
+
+  // if get then file send to cloudinary
+  const uploadedAvatar = await uploadOnCloudinary(avatarLocalFile);
+
+  // if url not get from cloudinary
+  if (!uploadedAvatar?.url) {
+    throw new ApiError(500, "Avatar upload failed...");
+  }
+
+  // if get then save the path in mongoDB database
+  const updatedAvatar = await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      $set: {
+        avatar: uploadedAvatar.url,
+      },
+    },
+    {
+      new: true,
+      runValidators: true,
+    }
+  ).select("-password -refreshToken");
+
+  // send the new data to user
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, updatedAvatar, "Avatar file Updated Successfully...")
+    );
+});
+
+// update CoverImage file
+const UpdateUserCoverImage = asyncHandler(async (req, res) => {
+  // get the req.file that contains new CoverImage file
+  const coverImageLocalFile = req.file?.path;
+
+  // if avatar file is missing
+  if (!coverImageLocalFile) {
+    throw new ApiError(400, "coverImage file is missing...");
+  }
+
+  // if get then file send to cloudinary
+  const uploadedCoverImage = await uploadOnCloudinary(coverImageLocalFile);
+
+  // if url not get from cloudinary
+  if (!uploadedCoverImage?.url) {
+    throw new ApiError(500, "coverImage upload failed...");
+  }
+
+  // if get then save the path in mongoDB database
+  const updatedCoverImage = await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      $set: {
+        coverImage: uploadedCoverImage.url,
+      },
+    },
+    {
+      new: true,
+      runValidators: true,
+    }
+  ).select("-password -refreshToken");
+
+  // send the new data to user
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200,updatedCoverImage, "Cover image updated successfully...")
+    );
 });
 
 export {
@@ -318,5 +441,8 @@ export {
   loginUser,
   logOutUser,
   refreshAccessToken,
-  createNewPassword,
+  getCurrentUserInfo,
+  UpdateAccountInfo,
+  UpdateUserAvatar,
+  UpdateUserCoverImage
 };
