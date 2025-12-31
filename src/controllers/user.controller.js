@@ -6,6 +6,8 @@ import uploadOnCloudinary from "../utils/cloudinary.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import deleteUploadFileToCloudinary from "../utils/deleteCloudinaryImage.js";
+import mongoose from "mongoose";
+
 //---------------Helper Function-----------------------
 const generateRefreshAndAccessToken = async (userId) => {
   try {
@@ -534,6 +536,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
       },
     },
   ]);
+  // aggregated function always return array.....
 
   // if not find any channel...
   if (!Channel?.length) {
@@ -548,7 +551,67 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     );
 });
 
-// aggregated function always return array.....
+// get the watch history
+const getUserWatchHistory = asyncHandler(async (req, res) => {
+  
+  // start the aggregation pipline
+  const watchHistoryData = await User.aggregate([
+    
+    // USER MODEL : 1
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(req.user._id),
+      },
+    },
+    {
+      $lookup: {
+        from: "Video",
+        localField: "watchHistory",
+        foreignField: "_id",
+        as: "watchHistory",
+        pipeline: [
+          // VIDEO MODEL : 2
+          {
+            $lookup: {
+              from: "User",
+              localField: "owner",
+              foreignField: "_id",
+              as: "owner",
+            },
+            pipeline: [
+              // VIDEO MODEL : 1
+              {
+                $project: {
+                  username: 1,
+                  fullname: 1,
+                  avatr: 1,
+                },
+              },
+            ],
+          },
+          {
+            $addFields: {
+              owner: { $arrayElemAt: ["$ower", 0] },
+            },
+          },
+        ],
+      },
+    },
+  ]);
+
+  if (!watchHistoryData?.length) {
+    throw new ApiError(401, "No User watch History found");
+  }
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        watchHistoryData[0].watchHistory,
+        "successfully fetch watch history..."
+      )
+    );
+});
 
 export {
   registerUser,
@@ -561,4 +624,5 @@ export {
   UpdateUserAvatar,
   UpdateUserCoverImage,
   getUserChannelProfile,
+  getUserWatchHistory,
 };
