@@ -1,7 +1,6 @@
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiError from "../utils/ApiError.js";
 import { User } from "../models/user.models.js";
-import { Subscription } from "../models/subscription.models.js";
 import uploadOnCloudinary from "../utils/cloudinary.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
@@ -551,45 +550,49 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     );
 });
 
-// get the watch history
 const getUserWatchHistory = asyncHandler(async (req, res) => {
-  // start the aggregation pipline
+  // start the aggregation pipeline
   const watchHistoryData = await User.aggregate([
-    // USER MODEL : 1
+    // 1️⃣ Match the logged-in user
     {
       $match: {
         _id: new mongoose.Types.ObjectId(req.user._id),
       },
     },
+
+    // 2️⃣ Lookup the watched videos
+    // user
     {
       $lookup: {
-        from: "Video",
+        from: "videos", // MongoDB collection names are usually lowercase plural
         localField: "watchHistory",
         foreignField: "_id",
         as: "watchHistory",
         pipeline: [
-          // VIDEO MODEL : 2
+          // 2a️⃣ Lookup owner of each video
+          // Video
           {
             $lookup: {
-              from: "User",
+              from: "users", // correct collection name
               localField: "owner",
               foreignField: "_id",
               as: "owner",
-            },
-            pipeline: [
-              // VIDEO MODEL : 1
-              {
-                $project: {
-                  username: 1,
-                  fullname: 1,
-                  avatr: 1,
+              // user
+              pipeline: [
+                {
+                  $project: {
+                    username: 1,
+                    fullname: 1,
+                    avatar: 1, // fixed typo: avatr → avatar
+                  },
                 },
-              },
-            ],
+              ],
+            },
           },
+          // 2b️⃣ Convert owner array to single object
           {
             $addFields: {
-              owner: { $arrayElemAt: ["$ower", 0] },
+              owner: { $arrayElemAt: ["$owner", 0] }, // fixed typo: $ower → $owner
             },
           },
         ],
@@ -598,15 +601,17 @@ const getUserWatchHistory = asyncHandler(async (req, res) => {
   ]);
 
   if (!watchHistoryData?.length) {
-    throw new ApiError(401, "No User watch History found");
+    throw new ApiError(404, "No user watch history found");
   }
+
+  // 3️⃣ Return watch history
   return res
     .status(200)
     .json(
       new ApiResponse(
         200,
         watchHistoryData[0].watchHistory,
-        "successfully fetch watch history..."
+        "Successfully fetched watch history"
       )
     );
 });

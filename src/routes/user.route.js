@@ -55,9 +55,11 @@ userRouter
   .patch(verifyJWT, UploadToDisk.single("coverImage"), UpdateUserCoverImage);
 
 // fetch user Channel info
-userRouter.route("/channel-info/:username").get(verifyJWT, getUserChannelProfile);
+userRouter
+  .route("/channel-info/:username")
+  .get(verifyJWT, getUserChannelProfile);
 
 // send the watch History to frontend
-userRouter.route("/user-watch-History").get(verifyJWT,getUserWatchHistory);
+userRouter.route("/user-watch-History").get(verifyJWT, getUserWatchHistory);
 
 export default userRouter;
